@@ -58,6 +58,7 @@ const (
 	RINCRQ     = CommandCode(0x3a)
 	RDECR      = CommandCode(0x3b)
 	RDECRQ     = CommandCode(0x3c)
+    GETL       = CommandCode(0x94)
 
 	TAP_CONNECT          = CommandCode(0x40)
 	TAP_MUTATION         = CommandCode(0x41)
@@ -146,6 +147,7 @@ func init() {
 	CommandNames[RINCRQ] = "RINCRQ"
 	CommandNames[RDECR] = "RDECR"
 	CommandNames[RDECRQ] = "RDECRQ"
+	CommandNames[GETL] = "GETL"
 
 	CommandNames[TAP_CONNECT] = "TAP_CONNECT"
 	CommandNames[TAP_MUTATION] = "TAP_MUTATION"
@@ -377,6 +379,23 @@ func (client *Client) Receive() (*Response, error) {
 	return getResponse(client.conn, client.hdrBuf)
 }
 
+
+// Tap
+
+func (client *Client) Tap(vb []uint16, backfill bool) (<-chan *Response, error) {
+    var extras, body []byte
+    var ch <-chan *Response
+    client.Send(&Request{
+        Opcode: TAP_CONNECT,
+        VBucket:0,
+        Key:[]byte{},
+        Cas: 0,
+        Opaque: 0,
+        Extras: extras,
+        Body: body})
+    return ch,nil
+}
+
 // Get the value for a key.
 func (client *Client) Get(vb uint16, key string) (*Response, error) {
 	return client.Send(&Request{
@@ -388,6 +407,22 @@ func (client *Client) Get(vb uint16, key string) (*Response, error) {
 		Extras:  []byte{},
 		Body:    []byte{}})
 }
+
+// Getl the value for a key.
+func (client *Client) Getl(vb uint16, key string, expiry uint32) (*Response, error) {
+    body := []byte{0,0,0,0}
+    binary.BigEndian.PutUint32(body, expiry)
+
+	return client.Send(&Request{
+		Opcode:  GETL,
+		VBucket: vb,
+		Key:     []byte(key),
+		Cas:     0,
+		Opaque:  0,
+		Extras:  []byte{},
+		Body:    body})
+}
+
 
 // Delete a key.
 func (client *Client) Del(vb uint16, key string) (*Response, error) {
